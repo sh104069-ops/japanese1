@@ -1,1 +1,36 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="こくごのひろば">
+<meta name="theme-color" content="#2f7d6d">
+<title>こくごの ひろば｜体験しながら学ぶ国語</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app-header">
+    <button class="hbtn" id="homeBtn" aria-label="ホームへ">🏠</button>
+    <h1 class="app-title">こくごの ひろば</h1>
+    <button class="hbtn" id="teacherBtn" aria-label="せんせい用（ながおし）">👩‍🏫</button>
+  </header>
 
+  <main id="app" class="app-main"></main>
+
+  <div id="toast" class="toast" role="status"></div>
+
+  <!-- 印刷プレビュー -->
+  <div id="print-overlay" class="hidden">
+    <div class="print-toolbar">
+      <button class="btn primary" id="doPrint">🖨 印刷する</button>
+      <button class="btn" id="closePrint">✕ 閉じる</button>
+      <span class="pt-note">A4たてで印刷されます（iPadは 共有 → プリント でも可）</span>
+    </div>
+    <div id="print-area"></div>
+  </div>
+
+  <noscript>このアプリを使うには JavaScript を有効にしてください。</noscript>
+  <script src="script.js"></script>
+</body>
+</html>
