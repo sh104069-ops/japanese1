@@ -532,6 +532,7 @@ async function sayList(list, onEach) {
 
 /* ---------- 5. 画面の切りかえ ---------- */
 const state = {
+  kanaOpt: { script: 'hira', rows: ['あ', 'か'], len: 'short', count: 10 },
   wordOpt: { cats: [...WORD_CATS], count: 10 },
   picOpt: { type: 'all', mode: 'choice', count: 10 },
   storyOpt: { level: 1, listen: false },
@@ -550,6 +551,7 @@ screens.home = () => {
   app().innerHTML = `
     <h2 class="page-title">どれで べんきょう する?</h2>
     <div class="tiles">
+      <button class="tile t5" data-go="kanaMenu"><span class="tile-ico">あア</span><span class="tile-name">ひらがな・カタカナ</span><small>よむ・きく・かく</small></button>
       <button class="tile t1" data-go="wordsMenu"><span class="tile-ico">✏️</span><span class="tile-name">ことば・かんじ</span><small>よむ・かく・えらぶ</small></button>
       <button class="tile t2" data-go="picMenu"><span class="tile-ico">🖼️</span><span class="tile-name">えを 見て こたえよう</span><small>うごき・ようす</small></button>
       <button class="tile t3" data-go="storyMenu"><span class="tile-ico">📖</span><span class="tile-name">おはなしを よもう</span><small>ものがたり・せつめいぶん</small></button>
@@ -620,6 +622,161 @@ function buildWordQs(mode, cats, count) {
         answer: w.y, choices: shuffle([w.y, ...pickOthers(WORDS, x => x.y, 2, [w.y])]),
       };
     }
+  });
+}
+
+/* ===== ひらがな・カタカナ ===== */
+const KANA_ROWS = [
+  ['あ', 'あいうえお'], ['か', 'かきくけこ'], ['さ', 'さしすせそ'], ['た', 'たちつてと'], ['な', 'なにぬねの'],
+  ['は', 'はひふへほ'], ['ま', 'まみむめも'], ['や', 'やゆよ'], ['ら', 'らりるれろ'], ['わ', 'わをん'],
+  ['が', 'がぎぐげご'], ['ざ', 'ざじずぜぞ'], ['だ', 'だぢづでど'], ['ば', 'ばびぶべぼ'], ['ぱ', 'ぱぴぷぺぽ'],
+];
+// まちがえやすい形（選択肢に入れる）
+const CONFUSE = [['さ', 'ち', 'き'], ['ぬ', 'め'], ['ね', 'れ', 'わ'], ['る', 'ろ'], ['は', 'ほ'], ['あ', 'お', 'め'], ['い', 'り'], ['う', 'つ'], ['く', 'へ'],
+  ['シ', 'ツ'], ['ソ', 'ン', 'リ'], ['ク', 'ケ', 'タ'], ['ウ', 'ワ', 'フ'], ['ア', 'マ'], ['コ', 'ユ'], ['ヌ', 'ス', 'フ'], ['チ', 'テ'], ['ノ', 'メ'], ['ヨ', 'ヲ'], ['ル', 'レ'], ['キ', 'サ']];
+const SAME_SOUND = { ぢ: 'じ', づ: 'ず', を: 'お' };
+const HIRA_WORDS = [
+  ['あり', '🐜'], ['いぬ', '🐕'], ['うし', '🐄'], ['えんぴつ', '✏️'], ['おにぎり', '🍙'], ['かさ', '☂️'], ['きつね', '🦊'], ['くつ', '👟'],
+  ['けいと', '🧶'], ['こおり', '🧊'], ['さかな', '🐟'], ['しか', '🦌'], ['すいか', '🍉'], ['せんぷうき', '🪭'], ['そら', '🌤️'], ['たこ', '🐙'],
+  ['ちず', '🗺️'], ['つき', '🌙'], ['て', '✋'], ['とけい', '⏰'], ['なす', '🍆'], ['にじ', '🌈'], ['ぬいぐるみ', '🧸'], ['ねこ', '🐈'],
+  ['のこぎり', '🪚'], ['はな', '🌷'], ['ひこうき', '✈️'], ['ふね', '🚢'], ['へび', '🐍'], ['ほし', '⭐'], ['まど', '🪟'], ['みかん', '🍊'],
+  ['むし', '🐛'], ['めがね', '👓'], ['もも', '🍑'], ['やま', '⛰️'], ['ゆき', '⛄'], ['よる', '🌃'], ['らくだ', '🐫'], ['りんご', '🍎'],
+  ['るすばん', '🏠'], ['れもん', '🍋'], ['ろうそく', '🕯️'], ['わに', '🐊'], ['がっこう', '🏫'], ['ぎゅうにゅう', '🥛'], ['ぐんて', '🧤'], ['げた', '🩴'],
+  ['ごはん', '🍚'], ['ざる', '🧺'], ['じてんしゃ', '🚲'], ['ずかん', '📗'], ['ぞう', '🐘'], ['だんご', '🍡'], ['でんわ', '📞'], ['どんぐり', '🌰'],
+  ['ばった', '🦗'], ['びん', '🍾'], ['ぶどう', '🍇'], ['べんとう', '🍱'], ['ぼうし', '👒'], ['たんぽぽ', '🌼'], ['てんぷら', '🍤'],
+  ['いちご', '🍓'], ['うま', '🐴'], ['くるま', '🚗'], ['とり', '🐦'], ['かめ', '🐢'], ['かに', '🦀'],
+].map(([w, e]) => ({ w, e }));
+const KATA_WORDS = [
+  ['アイス', '🍦'], ['イルカ', '🐬'], ['ウサギ', '🐇'], ['エプロン', '👩‍🍳'], ['オムライス', '🍳'], ['カメラ', '📷'], ['キウイ', '🥝'], ['クッキー', '🍪'],
+  ['ケーキ', '🍰'], ['コアラ', '🐨'], ['サンドイッチ', '🥪'], ['シャツ', '👕'], ['スプーン', '🥄'], ['セーター', '🧥'], ['ソファ', '🛋️'], ['タイコ', '🥁'],
+  ['チーズ', '🧀'], ['ツリー', '🎄'], ['テレビ', '📺'], ['トマト', '🍅'], ['ナイフ', '🔪'], ['ニンジン', '🥕'], ['ネクタイ', '👔'], ['ノート', '📓'],
+  ['ハート', '❤️'], ['ヒヨコ', '🐤'], ['フォーク', '🍴'], ['ヘリコプター', '🚁'], ['ホットケーキ', '🥞'], ['マスク', '😷'], ['ミルク', '🥛'], ['メロン', '🍈'],
+  ['モモンガ', '🐿️'], ['ヤシ', '🌴'], ['ヨット', '⛵'], ['ライオン', '🦁'], ['リボン', '🎀'], ['ロボット', '🤖'], ['ワイン', '🍷'], ['ガム', '🍬'],
+  ['ギター', '🎸'], ['ゴリラ', '🦍'], ['ズボン', '👖'], ['ドーナツ', '🍩'], ['バナナ', '🍌'], ['バス', '🚌'], ['ベッド', '🛏️'], ['ボール', '⚽'],
+  ['パン', '🍞'], ['ピアノ', '🎹'], ['プリン', '🍮'], ['ペン', '🖊️'], ['ポスト', '📮'], ['ピザ', '🍕'], ['パンダ', '🐼'], ['カレー', '🍛'],
+  ['トラック', '🚚'], ['コップ', '🥤'], ['ハンバーガー', '🍔'], ['ペンギン', '🐧'], ['ラーメン', '🍜'], ['テント', '⛺'],
+].map(([w, e]) => ({ w, e }));
+const toKata = s => String(s).replace(/[ぁ-ゖ]/g, c => String.fromCharCode(c.charCodeAt(0) + 0x60));
+const toHira = s => String(s).replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
+const soundOf = ch => { const h = toHira(ch); return SAME_SOUND[h] || h; };
+const scriptName = s => s === 'kata' ? 'カタカナ' : 'ひらがな';
+function kanaChars(script, rows) {
+  return KANA_ROWS.filter(([r]) => rows.includes(r)).flatMap(([, cs]) => [...cs]).map(c => script === 'kata' ? toKata(c) : c);
+}
+function kanaWords(script) { return script === 'kata' ? KATA_WORDS : HIRA_WORDS; }
+function wordWith(ch, script, startOnly) {
+  const list = shuffle(kanaWords(script));
+  const st = list.find(x => x.w[0] === ch); if (st) return { ...st, pos: 0 };
+  if (startOnly) return null;
+  const any = list.find(x => x.w.includes(ch)); return any ? { ...any, pos: [...any.w].indexOf(ch) } : null;
+}
+function maskWord(w, pos) { return [...w].map((c, i) => i === pos ? '<span class="mask-box">？</span>' : c).join(''); }
+function kanaDistract(ch, pool, n) {
+  const script = /[ァ-ヶ]/.test(ch) ? 'kata' : 'hira';
+  const all = kanaChars(script, KANA_ROWS.map(r => r[0]));
+  const conf = (CONFUSE.find(g => g.includes(ch)) || []).filter(c => c !== ch);
+  const out = []; const seen = new Set([soundOf(ch)]);
+  for (const c of [...shuffle(conf).slice(0, 1), ...shuffle(pool), ...shuffle(all)]) {
+    if (out.length >= n) break; const s = soundOf(c); if (seen.has(s)) continue; seen.add(s); out.push(c);
+  }
+  return out;
+}
+function emojiDistract(w, script, n) {
+  return pickOthers(kanaWords(script).filter(x => soundOf(x.w[0]) !== soundOf(w.w[0])), x => x.e, n, [w.e]);
+}
+const KANA_MODES = [
+  { id: 'listen', ico: '👂', name: 'きいて もじを えらぼう', desc: 'きこえた おとの もじを えらぶ（よみとり）' },
+  { id: 'read', ico: '👀', name: 'もじを よもう', desc: 'その もじで はじまる えを えらぶ（よみとり）' },
+  { id: 'pair', ico: '🔁', name: 'ひらがなと カタカナ', desc: 'おなじ おとの もじを えらぶ' },
+  { id: 'tegaki', ico: '✍️', name: 'もじを かこう', desc: 'おとを きいて ゆびで かく（かきとり）' },
+  { id: 'wread', ico: '📗', name: 'ことばを よもう', desc: 'ことばを よんで、あう えを えらぶ', word: true },
+  { id: 'wtype', ico: '⌨️', name: 'ことばを かこう（キーボード）', desc: 'えを 見て ことばを かく', word: true },
+  { id: 'wtegaki', ico: '🖐️', name: 'ことばを ゆびで かこう', desc: 'えを 見て マスに ことばを かく（かきとり）', word: true },
+];
+screens.kanaMenu = () => {
+  const o = state.kanaOpt; const K = o.script === 'kata';
+  app().innerHTML = `
+    <h2 class="page-title">あア ひらがな・カタカナ</h2>
+    <div class="panel">
+      <div class="label">もじ</div>
+      ${chipsHTML('kS', [['hira', 'あ ひらがな'], ['kata', 'ア カタカナ']], v => o.script === v)}
+      <div class="label">べんきょう する ぎょう（もじの もんだい）</div>
+      <div class="chips" id="kRows">${KANA_ROWS.map(([r, cs]) => `<button class="chip kyokasho ${o.rows.includes(r) ? 'on' : ''}" data-v="${r}">${K ? toKata(cs) : cs}</button>`).join('')}</div>
+      <div class="row"><button class="btn tiny" id="kSei">せいおん ぜんぶ</button><button class="btn tiny" id="kAll">ぜんぶ</button><button class="btn tiny ghost" id="kNone">はじめに もどす</button></div>
+      <div class="label">ことばの ながさ（ことばの もんだい）</div>
+      ${chipsHTML('kLen', [['short', 'みじかい（3もじまで）'], ['all', 'ぜんぶ']], v => o.len === v)}
+      <div class="label">もんだいの かず</div>
+      ${chipsHTML('kCnt', [[5, '5もん'], [10, '10もん'], [15, '15もん']], v => o.count === v)}
+    </div>
+    <div class="menu-list">
+      ${KANA_MODES.map(m => `<button class="menu-btn" data-m="${m.id}"><span class="mi">${m.ico}</span><span class="mt"><b>${m.id === 'pair' ? (K ? 'カタカナ → ひらがな' : 'ひらがな → カタカナ') : m.name}</b><small>${m.desc}</small></span><span class="go">▶</span></button>`).join('')}
+    </div>`;
+  $$('#kS .chip').forEach(b => b.onclick = () => { o.script = b.dataset.v; screens.kanaMenu(); });
+  $$('#kRows .chip').forEach(b => b.onclick = () => {
+    const v = b.dataset.v, i = o.rows.indexOf(v);
+    if (i >= 0) { if (o.rows.length > 1) o.rows.splice(i, 1); else toast('ひとつは えらんでね'); } else o.rows.push(v);
+    screens.kanaMenu();
+  });
+  $('#kSei').onclick = () => { o.rows = KANA_ROWS.slice(0, 10).map(r => r[0]); screens.kanaMenu(); };
+  $('#kAll').onclick = () => { o.rows = KANA_ROWS.map(r => r[0]); screens.kanaMenu(); };
+  $('#kNone').onclick = () => { o.rows = ['あ']; screens.kanaMenu(); };
+  $$('#kLen .chip').forEach(b => b.onclick = () => { o.len = b.dataset.v; screens.kanaMenu(); });
+  $$('#kCnt .chip').forEach(b => b.onclick = () => { o.count = +b.dataset.v; screens.kanaMenu(); });
+  $$('.menu-btn[data-m]').forEach(b => b.onclick = () => {
+    const m = KANA_MODES.find(x => x.id === b.dataset.m);
+    const qs = buildKanaQs(m.id, o);
+    if (!qs.length) { toast('この ぎょうでは できる もんだいが ありません。ほかの ぎょうも えらんでね'); return; }
+    runQuiz({ title: `${scriptName(o.script)}：${b.querySelector('b').textContent}`, area: 'もじ', backTo: 'kanaMenu', make: () => buildKanaQs(m.id, o) });
+  });
+};
+function buildKanaQs(mode, o) {
+  const S = o.script, K = S === 'kata', other = K ? 'hira' : 'kata';
+  const listenBtn = ch => `<button class="btn primary big listen-btn" data-say="${soundOf(ch)}">🔊 もういちど きく</button>`;
+  const autoSay = ch => () => { stopSpeak(); say(soundOf(ch)); };
+  if (KANA_MODES.find(m => m.id === mode).word) {
+    const words = kanaWords(S).filter(x => o.len === 'all' || [...x.w].length <= 3);
+    return shuffle(words).slice(0, o.count).map(w => {
+      if (mode === 'wread') return {
+        type: 'choice', media: `<div class="kana-word kyokasho">${w.w}</div>`, prompt: 'なんと かいて あるかな? あう えを えらぼう。',
+        answer: w.e, answerLabel: `${w.e} ${w.w}`, choices: shuffle([w.e, ...emojiDistract(w, S, 2)]), choiceClass: 'emoji-choice',
+      };
+      const hint = `<button class="btn small" data-say="${toHira(w.w)}">🔊 ことばを きく</button>`;
+      if (mode === 'wtype') return {
+        type: 'write', media: `<div class="emoji-pic">${w.e}</div>`, prompt: `これは なにかな? ${scriptName(S)}で かこう。`, hint,
+        answer: w.w, exact: true, script: S,
+      };
+      return { type: 'canvas', media: `<div class="emoji-pic small">${w.e}</div>`, prompt: `これは なにかな? ${scriptName(S)}で マスに かこう。`, hint, answer: w.w };
+    });
+  }
+  let pool = kanaChars(S, o.rows);
+  if (mode === 'read') pool = pool.filter(c => wordWith(c, S, true));
+  if (!pool.length) return [];
+  let seq = []; while (seq.length < o.count) seq.push(...shuffle(pool));
+  seq = seq.slice(0, o.count);
+  return seq.map(ch => {
+    if (mode === 'listen') return {
+      type: 'choice', media: listenBtn(ch), prompt: 'きこえた もじは どれかな?', onShow: autoSay(ch),
+      answer: ch, choices: shuffle([ch, ...kanaDistract(ch, pool, 2)]), choiceClass: 'kana-choice kyokasho',
+    };
+    if (mode === 'read') {
+      const w = wordWith(ch, S, true);
+      return {
+        type: 'choice', media: `<div class="big-kana kyokasho">${ch}</div>`, prompt: 'この もじで はじまる ものは どれかな?',
+        answer: w.e, answerLabel: `${w.e} ${w.w}`, choices: shuffle([w.e, ...emojiDistract(w, S, 2)]), choiceClass: 'emoji-choice',
+      };
+    }
+    if (mode === 'pair') {
+      const ans = K ? toHira(ch) : toKata(ch);
+      return {
+        type: 'choice', media: `<div class="big-kana kyokasho">${ch}</div>`, prompt: `おなじ おとの ${scriptName(other)}は どれかな?`,
+        answer: ans, choices: shuffle([ans, ...kanaDistract(ans, kanaChars(other, o.rows), 2)]), choiceClass: 'kana-choice kyokasho',
+      };
+    }
+    const w = wordWith(ch, S, false);
+    return {
+      type: 'canvas', media: listenBtn(ch), prompt: `きこえた もじを ${scriptName(S)}で かこう。`, onShow: autoSay(ch),
+      hint: w ? `<div class="emoji-pic small">${w.e}</div><div class="kana-hint kyokasho">${maskWord(w.w, w.pos)}</div>` : '', answer: ch,
+    };
   });
 }
 
@@ -845,21 +1002,23 @@ function renderQ() {
   $('#qSay').onclick = () => { stopSpeak(); say(q.speak || stripTags(q.prompt)); };
   if (q.hint) $('#qHint').onclick = () => $('#hintBox').classList.toggle('hidden');
   ANSWER[q.type](q, $('#ansArea'));
+  $$('[data-say]').forEach(b => b.onclick = () => { stopSpeak(); say(b.dataset.say); });
+  if (q.onShow) q.onShow();
   const first = z.i === 0;
   if (z.onRender) z.onRender(q, first);
-  if (settings.autoRead && !(first && z.onRender)) say(q.speak || stripTags(q.prompt));
+  if (settings.autoRead && !q.onShow && !(first && z.onRender)) say(q.speak || stripTags(q.prompt));
 }
 function answered(ok, info = {}) {
   const z = state.quiz, q = z.items[z.i];
   if (q.done) return; q.done = true;
   if (ok) z.score++;
-  z.log.push({ q: stripTags(q.prompt), given: info.given || '', ok, type: q.type, answer: plain(q.answer || '') });
+  z.log.push({ q: stripTags(q.prompt), given: info.given || '', ok, type: q.type, answer: plain(q.answerLabel || q.answer || '') });
   beep(ok);
   const fb = $('#fb');
   fb.className = 'feedback show ' + (ok ? 'ok' : 'ng');
   if (q.type === 'feeling') fb.innerHTML = `<div class="mark">💮</div><div class="fb-msg">よく かけたね!</div>`;
   else if (ok) fb.innerHTML = `<div class="mark">⭕</div><div class="fb-msg">せいかい! ${pick(PRAISE)}</div>`;
-  else fb.innerHTML = `<div class="mark">❌</div><div class="fb-msg">こたえは 「<b>${rb(esc(q.answer))}</b>」だよ。</div>
+  else fb.innerHTML = `<div class="mark">❌</div><div class="fb-msg">こたえは 「<b>${rb(esc(q.answerLabel || q.answer))}</b>」だよ。${info.note ? `<br><small>${info.note}</small>` : ''}</div>
       ${info.override ? '<button class="btn small ghost" id="ovBtn">⭕ あって いた（せんせい）</button>' : ''}`;
   fb.insertAdjacentHTML('beforeend', `<button class="btn primary big" id="nextBtn">${z.i + 1 < z.items.length ? 'つぎへ ▶' : 'おわり ▶'}</button>`);
   if (info.override && !ok) $('#ovBtn').onclick = () => {
@@ -888,7 +1047,12 @@ const ANSWER = {
     const go2 = () => {
       if (q.done) return; const v = $('#wIn').value.trim();
       if (!v) { $('#wIn').focus(); toast('こたえを かいてね'); return; }
-      $('#wIn').disabled = true; answered(checkWrite(v, q.keys || [q.answer]), { given: v, override: q.override });
+      $('#wIn').disabled = true;
+      if (q.exact) {
+        const ok = v.normalize('NFKC').replace(/\s/g, '') === q.answer;
+        const other = !ok && norm(v) === norm(q.answer);
+        answered(ok, { given: v, note: other ? `おしい! ${scriptName(q.script)}で かいて みよう。` : '' });
+      } else answered(checkWrite(v, q.keys || [q.answer]), { given: v, override: q.override });
     };
     $('#wOk').onclick = go2;
     $('#wIn').onkeydown = e => { if (e.key === 'Enter' && !e.isComposing) go2(); };
@@ -896,7 +1060,7 @@ const ANSWER = {
   canvas(q, area) {
     const n = [...q.answer].length;
     area.innerHTML = `<div class="tegaki-wrap"><canvas id="pad" width="${300 * n}" height="300" style="max-width:${240 * n}px"></canvas>
-        <div class="tegaki-ans kyokasho hidden" id="tAns">${q.answer}</div></div>
+        <div class="tegaki-ans kyokasho hidden" id="tAns" style="font-size:${n > 2 ? 72 : n > 1 ? 110 : 150}px">${q.answer}</div></div>
       <div class="row center"><button class="btn" id="tClr">🧽 けす</button><button class="btn primary" id="tShow">👀 こたえを 見る</button></div>
       <div class="row center hidden" id="tSelf"><span class="self-q">おなじに かけたかな?</span>
         <button class="btn ok" id="tOk">⭕ かけた</button><button class="btn" id="tRe">🔁 もういちど</button><button class="btn ghost" id="tSkip">つぎへ</button></div>`;
@@ -995,7 +1159,8 @@ function saveRecord(r) {
 
 /* ---------- 7. せんせい用 ---------- */
 const TP = {
-  kind: 'words', ans: true, name: true, furi: true, title: '',
+  kind: 'kana', ans: true, name: true, furi: true, title: '',
+  kana: { script: 'hira', fmt: 'nazori', rows: new Set(['あ']), words: null, wordsScript: '', guide: false },
   words: { fmt: 'kaki', pic: true, shuffle: false, sel: new Set(WORDS.filter(w => w.c === 'しぜん').map(w => w.k)) },
   pics: { fmt: 'choice', sel: null },
   story: { id: STORIES[0].id, lv: 1, text: true, sel: null },
@@ -1017,7 +1182,7 @@ TEACHER.print = box => {
   box.innerHTML = `
     <div class="panel">
       <div class="label">1. プリントの種類</div>
-      ${chipsHTML('tpKind', [['words', '✏️ ことば・漢字'], ['pics', '🖼️ 絵を見て'], ['story', '📖 お話（読み取り）'], ['conv', '👂 会話（聞き取り）']], v => TP.kind === v)}
+      ${chipsHTML('tpKind', [['kana', 'あア ひらがな・カタカナ'], ['words', '✏️ ことば・漢字'], ['pics', '🖼️ 絵を見て'], ['story', '📖 お話（読み取り）'], ['conv', '👂 会話（聞き取り）']], v => TP.kind === v)}
       <div id="tpOpts"></div>
       <div class="label">3. 共通の設定</div>
       <div class="check-row">
@@ -1037,6 +1202,36 @@ TEACHER.print = box => {
   PRINT_OPTS[TP.kind]($('#tpOpts'));
 };
 const PRINT_OPTS = {
+  kana(el) {
+    const o = TP.kana; const K = o.script === 'kata'; const words = kanaWords(o.script);
+    if (!o.words || o.wordsScript !== o.script) { o.words = new Set(words.slice(0, 10).map(x => x.w)); o.wordsScript = o.script; }
+    const isWord = ['wwrite', 'wread'].includes(o.fmt);
+    el.innerHTML = `
+      <div class="label">2. 文字・形式</div>
+      ${chipsHTML('tkS', [['hira', 'ひらがな'], ['kata', 'カタカナ']], v => o.script === v)}
+      <select id="tkFmt" class="sel">
+        <option value="nazori">文字のなぞり書き（手本＋なぞり＋練習マス）</option>
+        <option value="kakitori">書き取り（絵とことばの □ に入る文字を書く）</option>
+        <option value="convert">${K ? 'カタカナ → ひらがなに書きかえる' : 'ひらがな → カタカナに書きかえる'}</option>
+        <option value="wwrite">絵を見て ことばを書く</option>
+        <option value="wread">ことばを読んで 絵に○をつける</option>
+      </select>
+      ${isWord ? `<label class="chk"><input type="checkbox" id="tkGuide" ${o.guide ? 'checked' : ''}> うすい手本をつける（ことばを書く）</label>
+        <p class="note">選択中：<b>${o.words.size}</b> 語 <button class="btn tiny" id="tkAll">全部</button><button class="btn tiny ghost" id="tkNone">解除</button></p>
+        <div class="pick-grid">${words.map(x => `<label class="pick"><input type="checkbox" data-kw="${x.w}" ${o.words.has(x.w) ? 'checked' : ''}><span>${x.e} ${x.w}</span></label>`).join('')}</div>`
+      : `<p class="note">出題する行（いくつでも）</p>
+        <div class="pick-grid">${KANA_ROWS.map(([r, cs]) => `<label class="pick"><input type="checkbox" data-kr="${r}" ${o.rows.has(r) ? 'checked' : ''}><span class="kyokasho">${K ? toKata(cs) : cs}</span></label>`).join('')}</div>`}`;
+    $('#tkFmt').value = o.fmt;
+    $('#tkFmt').onchange = e => { o.fmt = e.target.value; PRINT_OPTS.kana(el); };
+    $$('#tkS .chip').forEach(b => b.onclick = () => { o.script = b.dataset.v; PRINT_OPTS.kana(el); });
+    $$('[data-kr]', el).forEach(c => c.onchange = () => { if (c.checked) o.rows.add(c.dataset.kr); else o.rows.delete(c.dataset.kr); });
+    if (isWord) {
+      $('#tkGuide').onchange = e => o.guide = e.target.checked;
+      $$('[data-kw]', el).forEach(c => c.onchange = () => { if (c.checked) o.words.add(c.dataset.kw); else o.words.delete(c.dataset.kw); $('.note b', el).textContent = o.words.size; });
+      $('#tkAll').onclick = () => { words.forEach(x => o.words.add(x.w)); PRINT_OPTS.kana(el); };
+      $('#tkNone').onclick = () => { o.words.clear(); PRINT_OPTS.kana(el); };
+    }
+  },
   words(el) {
     const o = TP.words;
     el.innerHTML = `
@@ -1124,10 +1319,55 @@ function masu(str, guide) {
     ? `<span class="masu kyokasho"><span class="${guide ? 'guide' : 'ans'}">${ch}</span></span>`
     : `<span class="masu fixed kyokasho">${ch}</span>`).join('');
 }
+// cell: model=手本（こく表示） guide=うすい手本 ans=解答ページだけ表示 blank=空らん
+function cell(ch, mode, cls = '') {
+  const inner = mode === 'model' ? `<span>${ch}</span>` : mode === 'guide' ? `<span class="guide">${ch}</span>` : mode === 'ans' ? `<span class="ans">${ch}</span>` : '';
+  return `<span class="masu kyokasho ${cls}">${inner}</span>`;
+}
+function buildKanaPrint(P) {
+  const o = TP.kana, S = o.script, K = S === 'kata', nm = scriptName(S);
+  const no = i => `<span class="no">${i + 1}</span>`;
+  if (['wwrite', 'wread'].includes(o.fmt)) {
+    const list = kanaWords(S).filter(x => o.words.has(x.w));
+    if (!list.length) { toast('ことばを1つ以上えらんでください'); return false; }
+    if (o.fmt === 'wwrite') {
+      P.title = `えを 見て ${nm}で かこう`;
+      P.body = () => `<p class="ws-inst">えを 見て、${nm}で ことばを かきましょう。</p><div class="pw-grid one">${list.map((w, i) =>
+        `<div class="pw">${no(i)}<span class="pw-e big">${w.e}</span><span class="masu-row">${[...w.w].map(c => cell(c, o.guide ? 'guide' : 'ans', 'sm')).join('')}</span></div>`).join('')}</div>`;
+    } else {
+      const ch = list.map(w => shuffle([w.e, ...emojiDistract(w, S, 2)]));
+      P.title = `${nm}の ことばを よもう`;
+      P.body = () => `<p class="ws-inst">ことばを よんで、あう えに ○を つけましょう。</p><div class="pw-grid">${list.map((w, i) =>
+        `<div class="pw">${no(i)}<span class="pw-y kana-p kyokasho">${w.w}</span>${pChoices(ch[i], w.e).replace('pc-row', 'pc-row emoji-row')}</div>`).join('')}</div>`;
+    }
+    return true;
+  }
+  const chars = kanaChars(S, [...o.rows]);
+  if (!chars.length) { toast('行を1つ以上えらんでください'); return false; }
+  if (o.fmt === 'nazori') {
+    P.title = `${nm}を かこう`;
+    P.body = () => `<p class="ws-inst">てほんを 見て、なぞって から かきましょう。</p><div class="kn-list">${chars.map(c =>
+      `<div class="kn-row">${cell(c, 'model', 'model')}<span class="kn-arrow">▶</span>${cell(c, 'guide')}${cell(c, 'guide')}${cell(c, 'blank')}${cell(c, 'blank')}${cell(c, 'blank')}</div>`).join('')}</div>`;
+  } else if (o.fmt === 'kakitori') {
+    const items = chars.map(c => ({ c, w: wordWith(c, S, false) }));
+    P.title = `${nm}の かきとり`;
+    P.body = () => `<p class="ws-inst">えを 見て、□に はいる ${nm}を かきましょう。</p><div class="pw-grid">${items.map((it, i) =>
+      `<div class="pw">${no(i)}${it.w ? `<span class="pw-e big">${it.w.e}</span><span class="masu-row">${[...it.w.w].map((c, j) => j === it.w.pos ? cell(c, 'ans', 'sm') : cell(c, 'model', 'sm fixed2')).join('')}</span>`
+        : `<span class="pw-y">（せんせいが いう もじ）</span>${cell(it.c, 'ans', 'sm')}`}</div>`).join('')}</div>`;
+  } else {
+    const to = K ? 'ひらがな' : 'カタカナ';
+    P.title = `${to}に かきかえよう`;
+    P.body = () => `<p class="ws-inst">${nm}を ${to}に かきかえましょう。</p><div class="pw-grid">${chars.map((c, i) =>
+      `<div class="pw">${no(i)}<span class="pw-k kyokasho">${c}</span><span class="kn-arrow">▶</span>${cell(K ? toHira(c) : toKata(c), 'ans')}</div>`).join('')}</div>`;
+  }
+  return true;
+}
 function buildPrint() {
   const P = { title: '', body: () => '' };
   const F = TP.furi;
-  if (TP.kind === 'words') {
+  if (TP.kind === 'kana') {
+    if (!buildKanaPrint(P)) return;
+  } else if (TP.kind === 'words') {
     const o = TP.words; let list = WORDS.filter(w => o.sel.has(w.k));
     if (!list.length) { toast('言葉を1つ以上えらんでください'); return; }
     if (o.shuffle) list = shuffle(list);
